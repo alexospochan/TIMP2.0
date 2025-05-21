@@ -1,0 +1,29 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:7.0.4'
+        // ...other dependencies...
+    }
+}
+
+ext {
+    ndkVersion = "25.2.9519653"
+    compileSdkVersion = 34
+    minSdkVersion = 23
+    targetSdkVersion = 34
+    kotlinVersion = "2.0.21"
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+        maven { url 'https://oss.sonatype.org/content/repositories/snapshots' }
+    }
+}

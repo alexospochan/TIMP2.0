@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "TIMPApp",
+    "slug": "TIMPApp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
+    },
+    "android": {
+      "package": "com.leandro_alexis.TIMPApp",
+      "runtimeVersion": "1.0.0"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "177ede1d-2541-41ca-ab18-d4118b68f1d5"
+      }
+    },
+    "owner": "leandro_alexis",
+    "updates": {
+      "url": "https://u.expo.dev/177ede1d-2541-41ca-ab18-d4118b68f1d5"
+    }
+  }
+}
