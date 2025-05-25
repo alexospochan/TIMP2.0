@@ -5,13 +5,53 @@ import {
   TextInput, 
   TouchableOpacity, 
   ImageBackground, 
-  StyleSheet 
+  StyleSheet,
+  Alert,
+  ActivityIndicator
 } from "react-native";
 
 const RegistroScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleRegister = async () => {
+    if (!email || !password || !confirmPassword) {
+      Alert.alert("Error", "Por favor, completa todos los campos.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      Alert.alert("Error", "Las contraseñas no coinciden.");
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const response = await fetch("http://192.168.138.158:3000/registro", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert("Éxito", "Usuario registrado correctamente.");
+        navigation.navigate("Login");
+      } else {
+        Alert.alert("Error", data.message || "Error al registrar usuario.");
+      }
+    } catch (error) {
+      Alert.alert("Error", "No se pudo conectar con el servidor.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <ImageBackground 
@@ -25,7 +65,10 @@ const RegistroScreen = ({ navigation }) => {
           style={styles.input}
           placeholder="Correo electrónico"
           placeholderTextColor="#fff"
+          keyboardType="email-address"
+          autoCapitalize="none"
           onChangeText={setEmail}
+          value={email}
         />
         
         <TextInput
@@ -34,6 +77,7 @@ const RegistroScreen = ({ navigation }) => {
           placeholderTextColor="#fff"
           secureTextEntry
           onChangeText={setPassword}
+          value={password}
         />
         
         <TextInput
@@ -42,15 +86,17 @@ const RegistroScreen = ({ navigation }) => {
           placeholderTextColor="#fff"
           secureTextEntry
           onChangeText={setConfirmPassword}
+          value={confirmPassword}
         />
         
-        <TouchableOpacity style={styles.button} onPress={() => {/* Función para registrar usuario */}}>
-          <Text style={styles.buttonText}>Registrarse</Text>
+        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
+          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Registrarse</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity 
           style={styles.buttonSecondary} 
           onPress={() => navigation.navigate("Login")} 
+          disabled={loading}
         >
           <Text style={styles.buttonText}>Volver al Login</Text>
         </TouchableOpacity>

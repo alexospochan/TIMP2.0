@@ -6,14 +6,16 @@ import {
   TouchableOpacity, 
   ImageBackground, 
   Image,
-  StyleSheet
+  StyleSheet,
+  Alert
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../App";
 import { FontAwesome } from '@expo/vector-icons';   
 
-
 type Props = NativeStackScreenProps<RootStackParamList, "Login">;
+
+const SERVER_URL = "http://192.168.138.158:3000";  // Cambia aquí si tu IP cambia
 
 const LoginScreen: React.FC<Props> = ({ navigation }) => {
   const [email, setEmail] = useState("");
@@ -31,7 +33,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     return emailRegex.test(email);
   };
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     let valid = true;
     
     if (!email) {
@@ -54,8 +56,28 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
       setPasswordError("");
     }
 
-    if (valid) {
-      navigation.navigate("Mapas");
+    if (!valid) return;
+
+    try {
+      const response = await fetch(`${SERVER_URL}/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ email, password })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        Alert.alert("Éxito", data.message, [
+          { text: "OK", onPress: () => navigation.navigate("Mapas") }
+        ]);
+      } else {
+        Alert.alert("Error", data.message || "Error en el inicio de sesión");
+      }
+    } catch (error) {
+      Alert.alert("Error", "No se pudo conectar con el servidor");
     }
   };
 
@@ -79,6 +101,8 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
             setEmailError("");
           }}
           value={email}
+          keyboardType="email-address"
+          autoCapitalize="none"
         />
         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
         
