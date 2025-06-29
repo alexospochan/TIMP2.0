@@ -1,109 +1,151 @@
-import React from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Linking } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Linking, Platform, StatusBar, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import MapView, { Marker } from 'react-native-maps';
-import { FontAwesome } from '@expo/vector-icons'; 
+import { FontAwesome } from '@expo/vector-icons';
 
-const projects = [
-  { id: 1, route: 'D.F - Alvarado', distance: '95 / 237 Km', manager: 'Uriel Espronceda Z.', coordinates: { latitude: 19.432608, longitude: -99.133209 } }, 
-  { id: 2, route: 'D.F - Puebla', distance: '80 / 237 Km', manager: 'Uriel Espronceda Z.', coordinates: { latitude: 19.017352, longitude: -98.203079 } },
-  { id: 3, route: 'D.F - Toluca', distance: '60 / 237 Km', manager: 'Uriel Espronceda Z.', coordinates: { latitude: 19.282608, longitude: -99.657209 } },
-  { id: 4, route: 'D.F - Querétaro', distance: '120 / 237 Km', manager: 'Uriel Espronceda Z.', coordinates: { latitude: 20.5888, longitude: -100.3899 } },
-  { id: 5, route: 'D.F - Veracruz', distance: '270 / 237 Km', manager: 'Uriel Espronceda Z.', coordinates: { latitude: 19.1738, longitude: -96.1342 } },
-  { id: 6, route: 'D.F - Guadalajara', distance: '460 / 237 Km', manager: 'Uriel Espronceda Z.', coordinates: { latitude: 20.6597, longitude: -103.3496 } }
-];
-
-export default function App() {
+export default function MapasAdministrador() {
   const navigation = useNavigation();
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Función de navegación a la página de reportes de un proyecto
+  // Función para obtener proyectos desde backend
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch('http://192.168.73.158:3000/proyectos');
+      if (!response.ok) throw new Error('Error al obtener proyectos');
+      const data = await response.json();
+      setProjects(data);
+    } catch (error) {
+      console.error(error);
+      alert('Error cargando proyectos');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
+
   const handleNavigate = (id) => {
     navigation.navigate('Reportes', { projectId: id });
   };
 
-  // Función para abrir Google Maps
   const openGoogleMaps = (latitude, longitude) => {
     const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
     Linking.openURL(url);
   };
 
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#3B82F6" />
+        <Text style={{ color: 'white', marginTop: 10 }}>Cargando proyectos...</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Image source={require('../assets/TIMP.png')} style={styles.logo} />
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <Text style={styles.menuItem}>Usuarios</Text>
-          <Text style={styles.menuItem}>Mapas</Text>
-          <Text style={styles.menuItem}>Lista</Text>
-          <Text style={styles.menuItem}>Reporte</Text>
-          <Text style={styles.menuItem}>Pinturas</Text>
-          <Text style={styles.menuItem}>Reportes</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <StatusBar
+        barStyle="light-content"
+        backgroundColor="#1E293B"
+      />
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <Image
+            source={require('../assets/TIMP.png')}
+            style={styles.logo}
+            resizeMode="contain"
+          />
+          <Text style={styles.headerTitle}>Proyectos</Text>
+        </View>
+
+        <ScrollView contentContainerStyle={styles.cardContainer}>
+          {projects.length === 0 && (
+            <Text style={{ color: 'white', textAlign: 'center', marginTop: 20 }}>
+              No hay proyectos disponibles
+            </Text>
+          )}
+          {projects.map((project) => (
+            <View key={project._id} style={styles.card}>
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: parseFloat(project.latitude) || 20.6296, // Usa un valor por defecto si no tienes lat/lng en tu proyecto
+                    longitude: parseFloat(project.longitude) || -87.0739,
+                    latitudeDelta: 0.05,
+                    longitudeDelta: 0.05,
+                  }}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: parseFloat(project.latitude) || 20.6296,
+                      longitude: parseFloat(project.longitude) || -87.0739,
+                    }}
+                    title={project.nombre}
+                    description={`Kilometraje: ${project.kmInicio} / ${project.kmFinal} Km`}
+                  />
+                </MapView>
+
+                <TouchableOpacity
+                  style={styles.mapButton}
+                  onPress={() =>
+                    openGoogleMaps(parseFloat(project.latitude) || 20.6296, parseFloat(project.longitude) || -87.0739)
+                  }
+                >
+                  <FontAwesome name="map" size={20} color="white" />
+                </TouchableOpacity>
+              </View>
+
+              <TouchableOpacity style={styles.addButton} onPress={() => handleNavigate(project._id)}>
+                <Text style={styles.addButtonText}>Agregar +</Text>
+              </TouchableOpacity>
+
+              <View style={styles.cardInfo}>
+                <Text style={styles.infoText}>Proyecto: {project.nombre}</Text>
+                <Text style={styles.infoText}>Kilometraje: {project.kmInicio} / {project.kmFinal} Km</Text>
+                <Text style={styles.infoText}>Project manager: {project.manager}</Text>
+                <Text style={styles.infoText}>Ciudad inicio: {project.ciudadInicio}</Text>
+                <Text style={styles.infoText}>Ciudad final: {project.ciudadFinal}</Text>
+              </View>
+            </View>
+          ))}
         </ScrollView>
       </View>
-
-      <ScrollView contentContainerStyle={styles.cardContainer}>
-        {projects.map((project) => (
-          <View key={project.id} style={styles.card}>
-            <View style={styles.mapContainer}>
-              <MapView
-                style={styles.map}
-                initialRegion={{
-                  latitude: project.coordinates.latitude,
-                  longitude: project.coordinates.longitude,
-                  latitudeDelta: 0.05,
-                  longitudeDelta: 0.05,
-                }}
-              >
-                <Marker coordinate={project.coordinates} title={project.route} description={`Kilometraje: ${project.distance}`} />
-              </MapView>
-
-              {/* Botón flotante para abrir Google Maps */}
-              <TouchableOpacity 
-                style={styles.mapButton} 
-                onPress={() => openGoogleMaps(project.coordinates.latitude, project.coordinates.longitude)}
-              >
-                <FontAwesome name="map" size={20} color="white" />
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity style={styles.addButton} onPress={() => handleNavigate(project.id)}>
-              <Text style={styles.addButtonText}>Agregar +</Text>
-            </TouchableOpacity>
-
-            <View style={styles.cardInfo}>
-              <Text style={styles.infoText}>Proyecto: {project.route}</Text>
-              <Text style={styles.infoText}>Kilometraje: {project.distance}</Text>
-              <Text style={styles.infoText}>Project manager: {project.manager}</Text>
-            </View>
-          </View>
-        ))}
-      </ScrollView>
     </SafeAreaView>
   );
 }
 
+// Reutiliza tus estilos actuales o agrega los que necesites
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
   container: {
     flex: 1,
     backgroundColor: '#0F172A',
-    paddingTop: 5,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
     backgroundColor: '#1E293B',
-    marginTop: 14, 
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    marginTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   logo: {
-    width: 40,
-    height: 40,
-    marginRight: 10,
+    width: 60,
+    height: 60,
+    marginRight: 12,
   },
-  menuItem: {
+  headerTitle: {
     color: 'white',
-    marginHorizontal: 10,
-    fontSize: 16,
+    fontSize: 22,
+    fontWeight: 'bold',
   },
   cardContainer: {
     paddingBottom: 20,

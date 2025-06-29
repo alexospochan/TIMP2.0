@@ -1,14 +1,16 @@
 import React, { useState } from "react";
-import { 
-  View, 
-  Text, 
-  TextInput, 
-  TouchableOpacity, 
-  ImageBackground, 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  ImageBackground,
   StyleSheet,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
 } from "react-native";
+import * as Animatable from "react-native-animatable";
+import { FontAwesome } from "@expo/vector-icons";
 
 const RegistroScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
@@ -30,11 +32,9 @@ const RegistroScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://192.168.138.158:3000/registro", {
+      const response = await fetch("http://192.168.73.158:3000/usuarios/registrar", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
@@ -54,48 +54,64 @@ const RegistroScreen = ({ navigation }) => {
   };
 
   return (
-    <ImageBackground 
-      source={require("../assets/prueba2.jpg")} 
-      style={styles.background}
-    >
+    <ImageBackground source={require("../assets/prueba2.jpg")} style={styles.background}>
       <View style={styles.container}>
-        <Text style={styles.title}>Registrarse</Text>
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Correo electrónico"
-          placeholderTextColor="#fff"
-          keyboardType="email-address"
-          autoCapitalize="none"
-          onChangeText={setEmail}
-          value={email}
-        />
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Contraseña"
-          placeholderTextColor="#fff"
-          secureTextEntry
-          onChangeText={setPassword}
-          value={password}
-        />
-        
-        <TextInput
-          style={styles.input}
-          placeholder="Confirmar contraseña"
-          placeholderTextColor="#fff"
-          secureTextEntry
-          onChangeText={setConfirmPassword}
-          value={confirmPassword}
-        />
-        
-        <TouchableOpacity style={styles.button} onPress={handleRegister} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.buttonText}>Registrarse</Text>}
+        <Animatable.Text animation="fadeInDown" style={styles.title}>
+          Registrarse
+        </Animatable.Text>
+
+        <Animatable.View animation="fadeInUp" duration={600} style={styles.inputContainer}>
+          <FontAwesome name="envelope" size={20} color="#fff" style={styles.icon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Correo electrónico"
+            placeholderTextColor="#ccc"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            onChangeText={setEmail}
+            value={email}
+          />
+        </Animatable.View>
+
+        <Animatable.View animation="fadeInUp" delay={100} style={styles.inputContainer}>
+          <FontAwesome name="lock" size={20} color="#fff" style={styles.icon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Contraseña"
+            placeholderTextColor="#ccc"
+            secureTextEntry
+            onChangeText={setPassword}
+            value={password}
+          />
+        </Animatable.View>
+
+        <Animatable.View animation="fadeInUp" delay={200} style={styles.inputContainer}>
+          <FontAwesome name="lock" size={20} color="#fff" style={styles.icon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Confirmar contraseña"
+            placeholderTextColor="#ccc"
+            secureTextEntry
+            onChangeText={setConfirmPassword}
+            value={confirmPassword}
+          />
+        </Animatable.View>
+
+        <TouchableOpacity
+          style={styles.button}
+          onPress={handleRegister}
+          disabled={loading}
+        >
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.buttonText}>Registrarse</Text>
+          )}
         </TouchableOpacity>
 
-        <TouchableOpacity 
-          style={styles.buttonSecondary} 
-          onPress={() => navigation.navigate("Login")} 
+        <TouchableOpacity
+          style={styles.buttonSecondary}
+          onPress={() => navigation.navigate("Login")}
           disabled={loading}
         >
           <Text style={styles.buttonText}>Volver al Login</Text>
@@ -113,47 +129,53 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "rgba(0, 0, 0, 0.5)", 
-    padding: 20,
+    paddingHorizontal: 30,
+    backgroundColor: "rgba(0,0,0,0.6)",
   },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
     color: "#fff",
-    marginBottom: 20,
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  inputContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(255,255,255,0.15)",
+    borderRadius: 8,
+    marginBottom: 15,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "#ccc",
+  },
+  icon: {
+    marginRight: 10,
   },
   input: {
-    width: "80%",
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "#fff",
+    flex: 1,
+    height: 45,
     color: "#fff",
-    marginBottom: 10,
-    borderRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.2)",
   },
   button: {
-    width: "80%",
-    padding: 12,
     backgroundColor: "#007bff",
+    borderRadius: 8,
+    padding: 12,
     alignItems: "center",
-    borderRadius: 5,
     marginTop: 10,
   },
   buttonSecondary: {
-    width: "80%",
-    padding: 12,
     backgroundColor: "#6c757d",
+    borderRadius: 8,
+    padding: 12,
     alignItems: "center",
-    borderRadius: 5,
     marginTop: 10,
   },
   buttonText: {
     color: "#fff",
-    fontSize: 16,
     fontWeight: "bold",
+    fontSize: 16,
   },
 });
 
