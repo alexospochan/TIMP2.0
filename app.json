@@ -24,7 +24,7 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "SERVER_URL": "http://192.168.73.158:3000",
+      "SERVER_URL": "http://192.168.30.94:3000",
       "eas": {
         "projectId": "177ede1d-2541-41ca-ab18-d4118b68f1d5"
       }

@@ -17,6 +17,7 @@ import UsuariosAdmin from "./screens/Administrador/UsuariosAdmin";
 import BottomTabs from "./screens/Administrador/tabs/BottomTabs";
 import Agregarnuevousuario from "./screens/Administrador/Agregarnuevousuario";
 import EditarUsuario from "./screens/Administrador/EditarUsuario";
+import ReportesAdministrador from "./screens/Administrador/ReportesAdministrador";    
 
 
 // Definición de pantallas dentro de BottomTabs
@@ -41,6 +42,7 @@ export type RootStackParamList = {
   Usuarios: undefined; 
   Agregarnuevousuario:undefined; // Pantalla para agregar un nuevo usuario
   EditarUsuario: undefined; // Pantalla para editar un usuario existente
+  ReportesAdministrador: undefined; // Pantalla para ver reportes de administrador
   
 };
 
@@ -108,6 +110,11 @@ const App = () => {
       <Stack.Screen
         name="EditarUsuario"
         component={EditarUsuario} // Cambia esto por la pantalla de Usuarios si la tienes
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="ReportesAdministrador"
+        component={ReportesAdministrador}
         options={{ headerShown: false }}
       />
       </Stack.Navigator>

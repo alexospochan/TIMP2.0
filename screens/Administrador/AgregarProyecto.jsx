@@ -93,7 +93,7 @@ export default function AgregarProyecto({ navigation }) {
     }
 
     try {
-      const response = await fetch("http://192.168.73.158:3000/proyectos", {
+      const response = await fetch("http://192.168.30.94:3000/proyectos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

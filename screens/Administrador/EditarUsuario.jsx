@@ -33,7 +33,7 @@ export default function EditarUsuario() {
   useEffect(() => {
     const cargarDatos = async () => {
       try {
-        const resProyectos = await fetch("http://192.168.73.158:3000/proyectos");
+        const resProyectos = await fetch("http://192.168.30.94:3000/proyectos");
         const proyectosData = await resProyectos.json();
 
         setProyectosDisponibles(proyectosData);
@@ -80,7 +80,7 @@ export default function EditarUsuario() {
     }
 
     try {
-      const response = await fetch(`http://192.168.73.158:3000/usuarios/${usuario._id}`, {
+      const response = await fetch(`http://192.168.30.94:3000/usuarios/${usuario._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

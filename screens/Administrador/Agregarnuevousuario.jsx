@@ -54,7 +54,7 @@ const AgregarNuevoUsuario = () => {
   const [proyectos, setProyectos] = useState([]);
 
   useEffect(() => {
-    fetch("http://192.168.73.158:3000/proyectos")
+    fetch("http://192.168.30.94:3000/proyectos")
       .then((res) => res.json())
       .then((data) => setProyectos(data))
       .catch(() =>
@@ -88,7 +88,7 @@ const AgregarNuevoUsuario = () => {
       proyectoId: proyectoSeleccionado,
     };
 
-    fetch("http://192.168.73.158:3000/usuarios/registrar", {
+    fetch("http://192.168.30.94:3000/usuarios/registrar", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(nuevoUsuario),

@@ -4,7 +4,7 @@ import { MaterialIcons, FontAwesome, Entypo } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import * as FileSystem from 'expo-file-system';
-import { PDFDocument, rgb } from 'react-native-pdf-lib';
+
 import { Sharing } from 'expo';
 import * as Clipboard from 'expo-clipboard';
 

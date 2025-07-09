@@ -1,416 +1,275 @@
-import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView, Image, ToastAndroid, SafeAreaView } from 'react-native';
-import { MaterialIcons, FontAwesome, Entypo } from '@expo/vector-icons';
+// Interfaz visual ajustada con sincronización al volver y mejoras UX
+import React, { useState, useEffect } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  Image,
+  SafeAreaView,
+  Alert,
+  Modal,
+  Pressable,
+} from 'react-native';
+import { MaterialIcons, Feather } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
-import * as FileSystem from 'expo-file-system';
-import { PDFDocument, rgb } from 'react-native-pdf-lib';
-import { Sharing } from 'expo';
 import * as Clipboard from 'expo-clipboard';
 
 const etiquetas = {
-  'Zanjeado': "Descripción del Trabajo Realizado El trabajo consistió en la excavación de una zanja para la instalación de cables de fibra óptica...",
-  'Avance': 'El trabajo ha progresado de acuerdo al plan establecido y se ha completado un 30% deL trabajo realizado en la fecha proramada',
-  'Daños': 'Se han identificado daños...',
+  Zanjeado: 'El trabajo consistió en la excavación de una zanja para la instalación de cables de fibra óptica...',
+  Avance: 'El trabajo ha progresado de acuerdo al plan establecido y se ha completado un 30%...',
+  Daños: 'Se han identificado daños...'
 };
 
-export default function ReportScreen() {
-  const [prioridad, setPrioridad] = useState('Alta');
-  const [etiqueta, setEtiqueta] = useState('Zanjeado');
-  const [descripcion, setDescripcion] = useState(etiquetas['Zanjeado']);
-  const [imagenes, setImagenes] = useState([]);
-  const [coordenadas, setCoordenadas] = useState([]);
+export default function CreadorReporte({ navigation, route }) {
+  const { proyectoSeleccionado, reporte, usuario } = route.params || {};
 
-  const handleEtiquetaChange = (nuevaEtiqueta) => {
-    setEtiqueta(nuevaEtiqueta);
-    setDescripcion(etiquetas[nuevaEtiqueta]);
-  };
+  const [prioridad, setPrioridad] = useState(reporte?.importancia || 'Alta');
+  const [etiqueta, setEtiqueta] = useState(reporte?.categoria || 'Zanjeado');
+  const [descripcion, setDescripcion] = useState(reporte?.descripcion || etiquetas['Zanjeado']);
+  const [imagenes, setImagenes] = useState(reporte?.imagenes || []);
+  const [coordenadas, setCoordenadas] = useState([]);
+  const [modalEtiquetaVisible, setModalEtiquetaVisible] = useState(false);
+  const [modalPrioridadVisible, setModalPrioridadVisible] = useState(false);
+  const [modalImagenVisible, setModalImagenVisible] = useState(false);
+  const [imagenSeleccionada, setImagenSeleccionada] = useState(null);
+
+  useEffect(() => {
+    if (reporte) {
+      const coords = reporte.imagenes?.map(img => img.coordenadas) || [];
+      setCoordenadas(coords);
+    }
+  }, [reporte]);
 
   const tomarFoto = async () => {
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      alert('Se requieren permisos de cámara');
-      return;
-    }
+    if (status !== 'granted') return alert('Se requieren permisos de cámara');
+    if (imagenes.length >= 4) return alert('Máximo 4 imágenes');
 
-    if (imagenes.length >= 4) {
-      alert('Se ha alcanzado el limite de las 4 imagenes');
-      return;
-    }
-
-    const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [3, 4],
-      quality: 1,
-    });
-
+    const result = await ImagePicker.launchCameraAsync({ quality: 1, exif: true });
     if (!result.canceled) {
-      const { status: locationStatus } = await Location.requestForegroundPermissionsAsync();
-      if (locationStatus === 'granted') {
+      const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+      if (locStatus === 'granted') {
         const location = await Location.getCurrentPositionAsync({});
         const newImage = {
           uri: result.assets[0].uri,
           coordenadas: `${location.coords.latitude.toFixed(6)}, ${location.coords.longitude.toFixed(6)}`,
         };
-        setImagenes([newImage, ...imagenes]);
-        setCoordenadas([newImage.coordenadas, ...coordenadas]);
+        setImagenes([...imagenes, newImage]);
+        setCoordenadas([...coordenadas, newImage.coordenadas]);
       } else {
         alert('Se requieren permisos de ubicación');
       }
     }
   };
 
-  const convertirImagenABase64 = async (uri) => {
-    try {
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return base64;
-    } catch (error) {
-      console.error("Error al convertir la imagen a base64:", error);
-      return null;
-    }
-  };
-
-  const generarPDF = async () => {
-    try {
-      const pdf = await PDFDocument.create();
-      const page = pdf.addPage([600, 800]);
-      const { height } = page.getSize();
-
-      if (!page) throw new Error('No se pudo crear la página en el PDF.');
-
-      page.drawText('Reporte de Fotos y Coordenadas', {
-        x: 50,
-        y: height - 50,
-        size: 18,
-        color: rgb(0, 0, 0),
-      });
-
-      for (let index = 0; index < imagenes.length; index++) {
-        const image = imagenes[index];
-        const imageBase64 = await convertirImagenABase64(image.uri);
-        const imageCoordinates = image.coordenadas;
-
-        if (imageBase64 && imageCoordinates) {
-          page.drawImage(imageBase64, {
-            x: 50,
-            y: height - 100 - index * 200,
-            width: 180,
-            height: 140,
-          });
-
-          page.drawText(`Coordenadas: ${imageCoordinates}`, {
-            x: 250,
-            y: height - 120 - index * 200,
-            size: 12,
-            color: rgb(0, 0, 0),
-          });
-        } else {
-          console.error(`Imagen o coordenadas faltantes para la imagen en el índice ${index}`);
+  const borrarImagen = (index) => {
+    Alert.alert('Eliminar imagen', '¿Seguro que deseas eliminar esta fotografía?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Eliminar', style: 'destructive', onPress: () => {
+          const nuevas = [...imagenes];
+          nuevas.splice(index, 1);
+          setImagenes(nuevas);
         }
       }
+    ]);
+  };
 
-      const pdfPath = `${FileSystem.documentDirectory}reporte_fotos.pdf`;
-      await pdf.writeToFile(pdfPath);
+  const copiarCoord = async (coord) => {
+    await Clipboard.setStringAsync(coord);
+    alert('Coordenadas copiadas');
+  };
 
-      ToastAndroid.show('PDF generado exitosamente', ToastAndroid.SHORT);
-      await Sharing.shareAsync(pdfPath);
-    } catch (error) {
-      console.error("Error generando el PDF:", error);
-      ToastAndroid.show('Error al generar el PDF', ToastAndroid.SHORT);
+  const guardarReporte = async () => {
+    if (!descripcion.trim()) return alert('La descripción no puede estar vacía');
+    const datos = {
+      categoria: etiqueta,
+      importancia: prioridad,
+      descripcion,
+      usuario: usuario?.email || 'usuario@ejemplo.com',
+      fecha: new Date(),
+      imagenes,
+      proyectoId: proyectoSeleccionado._id,
+    };
+
+    try {
+      const url = reporte ? `http://192.168.30.94:3000/reportes/${reporte._id}` : 'http://192.168.30.94:3000/reportes';
+      const method = reporte ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(datos),
+      });
+      if (!res.ok) throw new Error();
+      alert('Reporte guardado exitosamente');
+      navigation.goBack();
+    } catch {
+      alert('Error al guardar');
     }
   };
 
-  const copiarAlPortapapeles = async (texto) => {
-    await Clipboard.setStringAsync(texto);
-    ToastAndroid.show('Coordenadas copiadas al portapapeles', ToastAndroid.SHORT);
-  };
+  const fechaActual = new Date().toLocaleString();
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <ScrollView style={styles.content} contentContainerStyle={styles.scrollContent}>
-
-          <TouchableOpacity style={styles.imageContainer} onPress={tomarFoto} activeOpacity={0.8}>
-            {imagenes.length > 0 ? (
-              <Image source={{ uri: imagenes[0].uri }} style={styles.imagePreview} />
+    <SafeAreaView style={{ flex: 1, backgroundColor: '#0B1626' }}>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 90 }}>
+        <View style={{ flexDirection: 'row', marginBottom: 20 }}>
+          <TouchableOpacity onPress={tomarFoto} style={styles.mainImageBox}>
+            {imagenes[0] ? (
+              <Image source={{ uri: imagenes[0].uri }} style={styles.cardImage} />
             ) : (
-              <View style={styles.imagePlaceholder}>
-                <Text style={styles.plusSign}>+</Text>
-              </View>
+              <View style={styles.placeholder}><Text style={{ fontSize: 40, color: '#90cdf4' }}>+</Text></View>
             )}
           </TouchableOpacity>
 
-          <View style={styles.infoCard}>
-            <View style={styles.infoFixed}>
-              <Text style={styles.label}>Fecha</Text>
-              <Text style={styles.value}>{new Date().toLocaleTimeString()} {new Date().toLocaleDateString()}</Text>
-
-              <Text style={styles.label}>Usuario</Text>
-              <Text style={styles.value}>miguel@teintmex.com</Text>
-            </View>
-
-            <View style={styles.buttonsGroup}>
-              <Text style={styles.subLabel}>Etiqueta</Text>
-              <View style={styles.buttonsRow}>
-                {Object.keys(etiquetas).map((item) => (
-                  <TouchableOpacity
-                    key={item}
-                    style={[styles.button, etiqueta === item && styles.buttonSelected]}
-                    onPress={() => handleEtiquetaChange(item)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.buttonText}>{item}</Text>
-                  </TouchableOpacity>
-                ))}
+          <View style={{ flex: 1, marginLeft: 15 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={styles.label}>{fechaActual}</Text>
+              <View style={{ flexDirection: 'row' }}>
+                <TouchableOpacity onPress={guardarReporte} style={{ marginRight: 12 }}>
+                  <Feather name="save" size={22} color="#90cdf4" />
+                </TouchableOpacity>
               </View>
             </View>
-
-            <View style={styles.buttonsGroup}>
-              <Text style={styles.subLabel}>Prioridad</Text>
-              <View style={styles.buttonsRow}>
-                {['Alta', 'Media', 'Baja'].map((level) => (
-                  <TouchableOpacity
-                    key={level}
-                    style={[styles.button, prioridad === level && styles.buttonSelected]}
-                    onPress={() => setPrioridad(level)}
-                    activeOpacity={0.7}
-                  >
-                    <Text style={styles.buttonText}>{level}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <Text style={[styles.label, { marginTop: 20 }]}>Observaciones</Text>
-            <TextInput
-              style={styles.textArea}
-              multiline
-              value={descripcion}
-              onChangeText={setDescripcion}
-              placeholder="Escribe aquí tus observaciones..."
-              placeholderTextColor="#7b8ea3"
-            />
-          </View>
-
-          <Text style={[styles.label, { marginTop: 30, marginBottom: 10 }]}>Fotos y Coordenadas:</Text>
-          <View style={styles.imagesContainer}>
-            {imagenes.length === 0 ? (
-              <Text style={styles.noImagesText}>No hay fotos tomadas</Text>
-            ) : (
-              imagenes.map((image, index) => (
-                <View key={index} style={styles.imageCard}>
-                  <Image source={{ uri: image.uri }} style={styles.cardImage} />
-                  <View style={styles.coordContainer}>
-                    <Text style={styles.coordText}>{image.coordenadas}</Text>
-                    <TouchableOpacity onPress={() => copiarAlPortapapeles(image.coordenadas)} style={styles.copyButton} activeOpacity={0.7}>
-                      <Entypo name="clipboard" size={22} color="#90cdf4" />
-                    </TouchableOpacity>
+            <Text style={[styles.label, { marginTop: 5 }]}>Usuario: {usuario?.email || 'usuario@ejemplo.com'}</Text>
+            <View style={{ marginTop: 10 }}>
+              <Text style={styles.label}>Etiqueta</Text>
+              <TouchableOpacity onPress={() => setModalEtiquetaVisible(true)} style={[styles.tag, styles.selectedTag]}>
+                <Text style={{ color: 'white' }}>{etiqueta}</Text>
+              </TouchableOpacity>
+              <Modal transparent visible={modalEtiquetaVisible} animationType="fade" onRequestClose={() => setModalEtiquetaVisible(false)}>
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContainer}>
+                    {Object.keys(etiquetas).map((e) => (
+                      <Pressable key={e} onPress={() => { setEtiqueta(e); setDescripcion(etiquetas[e]); setModalEtiquetaVisible(false); }} style={styles.modalOption}>
+                        <Text style={{ color: 'white' }}>{e}</Text>
+                      </Pressable>
+                    ))}
                   </View>
                 </View>
-              ))
-            )}
-          </View>
-        </ScrollView>
+              </Modal>
 
-        <View style={styles.bottomNav}>
-          <TouchableOpacity activeOpacity={0.7}><FontAwesome name="home" size={24} color="white" /></TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}><MaterialIcons name="add-circle-outline" size={28} color="white" /></TouchableOpacity>
-          <TouchableOpacity activeOpacity={0.7}><FontAwesome name="user-circle" size={24} color="white" /></TouchableOpacity>
+              <Text style={[styles.label, { marginTop: 10 }]}>Prioridad</Text>
+              <TouchableOpacity onPress={() => setModalPrioridadVisible(true)} style={styles.tag}>
+                <Text style={{
+                  color: prioridad === 'Alta' ? '#dc2626' : prioridad === 'Media' ? '#f59e0b' : '#16a34a',
+                  fontWeight: 'bold'
+                }}>{prioridad}</Text>
+              </TouchableOpacity>
+              <Modal transparent visible={modalPrioridadVisible} animationType="fade" onRequestClose={() => setModalPrioridadVisible(false)}>
+                <View style={styles.modalOverlay}>
+                  <View style={styles.modalContainer}>
+                    {['Alta', 'Media', 'Baja'].map((level) => (
+                      <Pressable key={level} onPress={() => { setPrioridad(level); setModalPrioridadVisible(false); }} style={styles.modalOption}>
+                        <Text style={{ color: level === 'Alta' ? '#dc2626' : level === 'Media' ? '#f59e0b' : '#16a34a', fontWeight: 'bold' }}>{level}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </Modal>
+            </View>
+          </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.exportButton}
-          onPress={generarPDF}
-          activeOpacity={0.8}
-        >
-          <MaterialIcons name="file-download" size={28} color="white" />
-        </TouchableOpacity>
-      </View>
+        <View style={styles.infoCard}>
+          <Text style={styles.label}>Descripción</Text>
+          <TextInput
+            multiline
+            style={styles.inputArea}
+            value={descripcion}
+            onChangeText={setDescripcion}
+            placeholder="Observaciones..."
+            placeholderTextColor="#7b8ea3"
+          />
+        </View>
+
+        {imagenes.map((img, i) => (
+          <TouchableOpacity key={i} onPress={() => { setImagenSeleccionada(img.uri); setModalImagenVisible(true); }}>
+            <View style={styles.imageCard}>
+              <Image source={{ uri: img.uri }} style={styles.cardImage} />
+              <View style={styles.coordBar}>
+                <Text style={styles.coordText}>{img.coordenadas}</Text>
+                <View style={{ flexDirection: 'row' }}>
+                  <TouchableOpacity onPress={() => copiarCoord(img.coordenadas)} style={{ marginRight: 10 }}>
+                    <Feather name="copy" size={20} color="#63b3ed" />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => borrarImagen(i)}>
+                    <MaterialIcons name="delete" size={22} color="#f87171" />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </TouchableOpacity>
+        ))}
+
+        <Modal visible={modalImagenVisible} transparent animationType="fade">
+          <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' }} onPress={() => setModalImagenVisible(false)}>
+            {imagenSeleccionada && (
+              <Image source={{ uri: imagenSeleccionada }} style={{ width: '95%', height: '80%', resizeMode: 'contain', borderRadius: 10 }} />
+            )}
+          </Pressable>
+        </Modal>
+      </ScrollView>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#0B1626',
-  },
-  container: {
-    flex: 1,
-    paddingTop: 60,      // Considerando lo que pediste
-    paddingBottom: 20,
-    paddingHorizontal: 25,
-  },
-  content: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingBottom: 60,
-  },
-  imageContainer: {
+  mainImageBox: {
+    width: 140,
+    height: 180,
     backgroundColor: '#1e2a47',
     borderRadius: 15,
-    height: 250,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 22,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.2,
-    shadowRadius: 9,
-    elevation: 9,
+    alignItems: 'center'
   },
-  imagePreview: {
-    width: '92%',
-    height: 210,
-    borderRadius: 15,
-  },
-  imagePlaceholder: {
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  plusSign: {
-    fontSize: 60,
-    color: '#90cdf4',
-    fontWeight: 'bold',
-  },
-  infoCard: {
-    backgroundColor: '#142847',
-    borderRadius: 15,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 7 },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 8,
-  },
-  infoFixed: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#e1e8f7',
-  },
-  subLabel: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#b0c5e8',
-    marginBottom: 6,
-  },
-  value: {
-    fontSize: 15,
-    color: '#d3dce6',
-    marginTop: 3,
-  },
-  buttonsGroup: {
-    marginBottom: 15,
-  },
-  buttonsRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-start',
-  },
-  button: {
-    backgroundColor: '#224e9b',
-    paddingVertical: 8,
-    paddingHorizontal: 15,
-    borderRadius: 25,
-    marginRight: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
-  },
-  buttonSelected: {
-    backgroundColor: '#63b3ed',
-  },
-  buttonText: {
-    color: '#e1e8f7',
-    fontWeight: '600',
-    fontSize: 14,
-  },
-  textArea: {
-    backgroundColor: '#1f2d54',
-    color: '#cbd5e1',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    fontSize: 16,
-    height: 120,
-    textAlignVertical: 'top',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 7,
-    elevation: 6,
-  },
-  imagesContainer: {
-    marginBottom: 40,
-  },
+  placeholder: { justifyContent: 'center', alignItems: 'center' },
   imageCard: {
     backgroundColor: '#142847',
     borderRadius: 15,
-    marginBottom: 15,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 7,
-    elevation: 7,
+    marginBottom: 12,
+    overflow: 'hidden'
   },
-  cardImage: {
-    width: '100%',
-    height: 180,
-  },
-  coordContainer: {
+  cardImage: { width: '100%', height: 180 },
+  coordBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     backgroundColor: '#1e2a47',
-    paddingHorizontal: 15,
-    paddingVertical: 12,
-    alignItems: 'center',
+    padding: 10,
+    alignItems: 'center'
   },
-  coordText: {
-    color: '#90cdf4',
-    fontSize: 14,
-    fontWeight: '600',
+  coordText: { color: '#90cdf4', fontSize: 13 },
+  infoCard: { backgroundColor: '#142847', borderRadius: 15, padding: 15, marginBottom: 20 },
+  label: { color: '#e1e8f7', fontWeight: '700' },
+  tag: { backgroundColor: '#1f4d8a', padding: 8, borderRadius: 20, marginTop: 5, paddingHorizontal: 15 },
+  selectedTag: { backgroundColor: '#3182ce' },
+  inputArea: {
+    backgroundColor: '#1f2d54',
+    color: '#cbd5e1',
+    borderRadius: 12,
+    padding: 15,
+    fontSize: 15,
+    height: 120,
+    textAlignVertical: 'top'
   },
-  copyButton: {
-    padding: 4,
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.5)'
   },
-  noImagesText: {
-    color: '#7b8ea3',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    fontSize: 16,
+  modalContainer: {
+    backgroundColor: '#1e2a47',
+    margin: 30,
+    borderRadius: 10,
+    padding: 20
   },
-  bottomNav: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 14,
-    backgroundColor: '#142847',
-    borderTopWidth: 1,
-    borderTopColor: '#224e9b',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 9,
-  },
-  exportButton: {
-    position: 'absolute',
-    right: 20,
-    bottom: 80,
-    backgroundColor: '#1e40af',
-    padding: 18,
-    borderRadius: 50,
-    shadowColor: '#1e40af',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.7,
-    shadowRadius: 10,
-    elevation: 10,
-  },
+  modalOption: {
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155'
+  }
 });

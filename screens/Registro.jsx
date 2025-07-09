@@ -32,7 +32,7 @@ const RegistroScreen = ({ navigation }) => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://192.168.73.158:3000/usuarios/registrar", {
+      const response = await fetch("http://192.168.30.94:3000/usuarios/registrar", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),

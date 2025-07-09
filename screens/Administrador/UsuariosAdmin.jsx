@@ -20,7 +20,7 @@ const UsuariosAdmin = () => {
 
   // Función para cargar usuarios
   const fetchUsuarios = () => {
-    return fetch("http://192.168.73.158:3000/usuarios")
+    return fetch("http://192.168.30.94:3000/usuarios")
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         return res.json();
@@ -50,7 +50,7 @@ const UsuariosAdmin = () => {
   // Eliminar usuario
   const handleEliminarUsuario = async (id) => {
     try {
-      const response = await fetch(`http://192.168.73.158:3000/usuarios/${id}`, {
+      const response = await fetch(`http://192.168.30.94:3000/usuarios/${id}`, {
         method: "DELETE",
       });
 

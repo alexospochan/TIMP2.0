@@ -14,7 +14,7 @@ export default function MapasAdministrador({ navigation }) {
   const fetchProjects = async () => {
     try {
       setLoading(true);
-      const response = await fetch('http://192.168.73.158:3000/proyectos');
+      const response = await fetch('http://192.168.30.94:3000/proyectos');
       if (!response.ok) throw new Error('Error al obtener proyectos');
       const data = await response.json();
       setProjects(data.reverse());
