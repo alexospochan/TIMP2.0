@@ -23,23 +23,31 @@ const PerfilScreen = () => {
   const [rol, setRol] = useState("");
   const [mostrarModal, setMostrarModal] = useState(false);
   const [imagenPerfil, setImagenPerfil] = useState(null);
+
   const navigation = useNavigation();
 
   useEffect(() => {
     const cargarDatos = async () => {
       try {
         const userData = await AsyncStorage.getItem("userInfo");
+        console.log("userData raw en PerfilScreen:", userData);
+
         if (userData) {
           const user = JSON.parse(userData);
-          setNombreCompleto(user.nombre || user.name || "");
-          setCorreo(user.email || user.correo || "");
-          setRol(user.rol || user.role || "");
+          console.log("user parseado en PerfilScreen:", user);
 
-          const imgGuardada = await AsyncStorage.getItem(`fotoPerfil_${user.email || user.correo}`);
+          setNombreCompleto(user.nombre || "Nombre no disponible");
+          setCorreo(user.email || "Correo no disponible");
+          setRol(user.rol || "Rol no disponible");
+
+          const imgGuardada = await AsyncStorage.getItem(`fotoPerfil_${user.email}`);
+          console.log("Imagen guardada:", imgGuardada);
           if (imgGuardada) setImagenPerfil(imgGuardada);
+        } else {
+          console.log("No hay userInfo en AsyncStorage");
         }
       } catch (error) {
-        console.error("Error al cargar usuario:", error);
+        console.error("Error al cargar datos:", error);
       }
     };
 
@@ -48,7 +56,7 @@ const PerfilScreen = () => {
 
   const obtenerNombreRol = () => {
     if (rol === "admin") return "Administrador";
-    if (rol === "jefe") return "Jefe de Cuadrilla";
+    if (rol === "jefe" || rol === "jefe_cuadrilla") return "Jefe de Cuadrilla";
     return rol;
   };
 
@@ -60,59 +68,33 @@ const PerfilScreen = () => {
     });
   };
 
-  const subirImagenACloudinary = async (uri) => {
-    const data = new FormData();
-    data.append("file", {
-      uri,
-      type: "image/jpeg",
-      name: "perfil.jpg",
-    });
-    data.append("upload_preset", "TIMPAPP");
-
-    try {
-      const res = await fetch("https://api.cloudinary.com/v1_1/dudope9kq/image/upload", {
-        method: "POST",
-        body: data,
-      });
-      const file = await res.json();
-      return file.secure_url;
-    } catch (error) {
-      console.error("Error subiendo imagen:", error);
-      return null;
-    }
-  };
-
   const seleccionarImagen = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== "granted") {
-      Alert.alert("Permiso denegado", "Se necesita acceso a la galería.");
+  try {
+    // Pedir permisos para acceder a la galería
+    const permisoResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permisoResult.status !== "granted") {
+      alert("Se necesitan permisos para acceder a la galería de fotos");
       return;
     }
 
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.5,
-      });
+    // Abrir selector de imagen
+    const resultado = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1], // imagen cuadrada
+      quality: 0.7,
+    });
 
-      if (!result.canceled) {
-        const uri = result.assets[0].uri;
-        const urlCloudinary = await subirImagenACloudinary(uri);
-        if (urlCloudinary) {
-          setImagenPerfil(urlCloudinary);
-          const userData = await AsyncStorage.getItem("userInfo");
-          if (userData) {
-            const user = JSON.parse(userData);
-            await AsyncStorage.setItem(`fotoPerfil_${user.email || user.correo}`, urlCloudinary);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error en seleccionarImagen:", error);
+    if (!resultado.canceled && resultado.assets?.[0]?.uri) {
+      const uri = resultado.assets[0].uri;
+      await AsyncStorage.setItem(`fotoPerfil_${correo}`, uri);
+      setImagenPerfil(uri);
     }
-  };
+  } catch (error) {
+    console.error("Error al seleccionar imagen:", error);
+  }
+};
+
 
   return (
     <View style={styles.container}>
@@ -123,11 +105,12 @@ const PerfilScreen = () => {
             source={
               imagenPerfil
                 ? { uri: imagenPerfil }
-                : require("../../../assets/cable.jpg")
+                : require("../../assets/cable.jpg") // Cambia por tu imagen local
             }
             style={styles.avatar}
           />
         </TouchableOpacity>
+
         <View style={styles.infoContainer}>
           <View style={styles.infoRow}>
             <FontAwesome name="user" size={18} color="#38bdf8" />
@@ -151,7 +134,7 @@ const PerfilScreen = () => {
         {rol === "admin" && (
           <TouchableOpacity
             style={styles.button}
-            onPress={() => navigation.navigate("UsuariosAdmin")}
+            onPress={() => navigation.navigate("Usuarios")}
           >
             <FontAwesome name="users" size={16} color="#fff" />
             <Text style={styles.buttonText}>Usuarios</Text>
@@ -167,7 +150,7 @@ const PerfilScreen = () => {
         </TouchableOpacity>
       </View>
 
-      {/* Modal */}
+      {/* Modal Confirmación */}
       <Modal transparent animationType="fade" visible={mostrarModal}>
         <View style={styles.modalBackground}>
           <Animatable.View animation="fadeInUp" style={styles.modalContainer}>

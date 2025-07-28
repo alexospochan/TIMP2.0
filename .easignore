@@ -1,0 +1,11 @@
+# Ignora cosas que no necesita Expo
+node_modules
+.expo
+.expo-shared
+.git
+android
+ios
+*.zip
+*.apk
+*.log
+*.DS_Store

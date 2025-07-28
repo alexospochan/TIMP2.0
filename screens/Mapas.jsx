@@ -1,212 +1,290 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, Image, ScrollView, TouchableOpacity, StyleSheet, SafeAreaView, Linking, Platform, StatusBar, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import MapView, { Marker } from 'react-native-maps';
-import { FontAwesome } from '@expo/vector-icons';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  SafeAreaView,
+  ActivityIndicator,
+  Alert,
+  Platform,
+  StatusBar,
+  Image,
+  Linking,
+  RefreshControl,
+} from 'react-native';
+import MapView, { Marker, Polyline } from 'react-native-maps';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { FontAwesome5 } from '@expo/vector-icons';
+import { getProyectoPorId, getUsuarioPorId } from '../api'; // tu api.ts
 
-export default function MapasAdministrador() {
-  const navigation = useNavigation();
-  const [projects, setProjects] = useState([]);
+export default function Mapas({ navigation }) {
+  const [proyecto, setProyecto] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
-  // Función para obtener proyectos desde backend
-  const fetchProjects = async () => {
+  // Actualiza usuario local con datos de la API
+  const actualizarUsuarioLocal = async () => {
     try {
-      const response = await fetch('http://192.168.30.94:3000/proyectos');
-      if (!response.ok) throw new Error('Error al obtener proyectos');
-      const data = await response.json();
-      setProjects(data);
+      // Cambio importante: leer con la clave 'userInfo' igual que en login
+      const userJson = await AsyncStorage.getItem('userInfo');
+      if (!userJson) return null;
+
+      const user = JSON.parse(userJson);
+      if (!user._id) return user;
+
+      // Obtener usuario actualizado desde backend para tener proyecto actualizado
+      const usuarioActualizado = await getUsuarioPorId(user._id);
+      if (usuarioActualizado) {
+        await AsyncStorage.setItem('userInfo', JSON.stringify(usuarioActualizado));
+        return usuarioActualizado;
+      }
+      return user;
     } catch (error) {
+      console.error('Error actualizando usuario local:', error);
+      Alert.alert('Error', 'No se pudo actualizar el usuario.');
+      return null;
+    }
+  };
+
+  // Carga el proyecto asignado al usuario
+  const loadProyecto = async () => {
+    try {
+      setLoading(true);
+
+      const user = await actualizarUsuarioLocal();
+      if (!user) {
+        Alert.alert('Error', 'No se encontró usuario en sesión');
+        setLoading(false);
+        return;
+      }
+
+      // Validar que el usuario tenga proyecto asignado
+      if (!user.proyecto || !user.proyecto._id) {
+        Alert.alert('Info', 'No tienes proyecto asignado.');
+        setLoading(false);
+        return;
+      }
+
+      // Obtener datos completos del proyecto asignado
+      const proyectoCompleto = await getProyectoPorId(user.proyecto._id);
+      if (!proyectoCompleto) {
+        Alert.alert('Error', 'No se pudo cargar la información completa del proyecto.');
+        setLoading(false);
+        return;
+      }
+
+      setProyecto(proyectoCompleto);
+    } catch (error) {
+      Alert.alert('Error', 'Error al cargar datos del usuario');
       console.error(error);
-      alert('Error cargando proyectos');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProjects();
+    loadProyecto();
   }, []);
 
-  const handleNavigate = (id) => {
-    navigation.navigate('Reportes', { projectId: id });
-  };
-
-  const openGoogleMaps = (latitude, longitude) => {
-    const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
-    Linking.openURL(url);
-  };
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadProyecto();
+    setRefreshing(false);
+  }, []);
 
   if (loading) {
     return (
-      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]}>
+      <SafeAreaView style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#3B82F6" />
-        <Text style={{ color: 'white', marginTop: 10 }}>Cargando proyectos...</Text>
+        <Text style={{ color: 'white', marginTop: 10 }}>Cargando proyecto...</Text>
       </SafeAreaView>
     );
   }
 
+  if (!proyecto) {
+    return (
+      <SafeAreaView style={styles.loadingContainer}>
+        <Text style={{ color: 'white' }}>No tienes proyecto asignado.</Text>
+      </SafeAreaView>
+    );
+  }
+
+  // Coordenadas con valores por defecto
+  const latInicio = Number(proyecto.latInicio) || 20.6296;
+  const lonInicio = Number(proyecto.lonInicio) || -87.0739;
+  const latFinal = Number(proyecto.latFinal) || 20.6296;
+  const lonFinal = Number(proyecto.lonFinal) || -87.0739;
+
+  // Ajuste del zoom del mapa
+  const latDelta = Math.max(Math.abs(latFinal - latInicio) * 2, 0.05);
+  const lonDelta = Math.max(Math.abs(lonFinal - lonInicio) * 2, 0.05);
+
+  const openGoogleMaps = (lat, lon) => {
+    if (typeof lat !== 'number' || typeof lon !== 'number') {
+      Alert.alert('Error', 'Coordenadas inválidas para abrir en Google Maps.');
+      return;
+    }
+    const url = `https://www.google.com/maps/search/?api=1&query=${lat},${lon}`;
+    Linking.openURL(url).catch(() => {
+      Alert.alert('Error', 'No se pudo abrir Google Maps.');
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar
-        barStyle="light-content"
-        backgroundColor="#1E293B"
-      />
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Image
-            source={require('../assets/TIMP.png')}
-            style={styles.logo}
-            resizeMode="contain"
-          />
-          <Text style={styles.headerTitle}>Proyectos</Text>
+      <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
+      <View style={styles.mainContainer}>
+        <View style={styles.logoHeader}>
+          <Image source={require('../assets/TIMP.png')} style={styles.logo} resizeMode="contain" />
         </View>
-
-        <ScrollView contentContainerStyle={styles.cardContainer}>
-          {projects.length === 0 && (
-            <Text style={{ color: 'white', textAlign: 'center', marginTop: 20 }}>
-              No hay proyectos disponibles
-            </Text>
-          )}
-          {projects.map((project) => (
-            <View key={project._id} style={styles.card}>
-              <View style={styles.mapContainer}>
-                <MapView
-                  style={styles.map}
-                  initialRegion={{
-                    latitude: parseFloat(project.latitude) || 20.6296, // Usa un valor por defecto si no tienes lat/lng en tu proyecto
-                    longitude: parseFloat(project.longitude) || -87.0739,
-                    latitudeDelta: 0.05,
-                    longitudeDelta: 0.05,
-                  }}
-                >
-                  <Marker
-                    coordinate={{
-                      latitude: parseFloat(project.latitude) || 20.6296,
-                      longitude: parseFloat(project.longitude) || -87.0739,
-                    }}
-                    title={project.nombre}
-                    description={`Kilometraje: ${project.kmInicio} / ${project.kmFinal} Km`}
-                  />
-                </MapView>
-
-                <TouchableOpacity
-                  style={styles.mapButton}
-                  onPress={() =>
-                    openGoogleMaps(parseFloat(project.latitude) || 20.6296, parseFloat(project.longitude) || -87.0739)
-                  }
-                >
-                  <FontAwesome name="map" size={20} color="white" />
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity style={styles.addButton} onPress={() => handleNavigate(project._id)}>
-                <Text style={styles.addButtonText}>Agregar +</Text>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#3B82F6']} />
+          }
+        >
+          <View style={styles.card}>
+            <View style={styles.mapBox}>
+              <MapView
+                style={styles.map}
+                initialRegion={{
+                  latitude: (latInicio + latFinal) / 2,
+                  longitude: (lonInicio + lonFinal) / 2,
+                  latitudeDelta: latDelta,
+                  longitudeDelta: lonDelta,
+                }}
+                scrollEnabled
+                zoomEnabled
+                rotateEnabled
+                pitchEnabled
+              >
+                <Marker coordinate={{ latitude: latInicio, longitude: lonInicio }} pinColor="green" />
+                <Marker coordinate={{ latitude: latFinal, longitude: lonFinal }} pinColor="red" />
+                <Polyline
+                  coordinates={[
+                    { latitude: latInicio, longitude: lonInicio },
+                    { latitude: latFinal, longitude: lonFinal },
+                  ]}
+                  strokeColor="#3B82F6"
+                  strokeWidth={4}
+                />
+              </MapView>
+              <TouchableOpacity
+                style={styles.addButton}
+                onPress={() => navigation.navigate('Reportes')}
+              >
+                <FontAwesome5 name="plus" size={14} color="#1E293B" />
+                <Text style={styles.addButtonText}>Agregar</Text>
               </TouchableOpacity>
-
-              <View style={styles.cardInfo}>
-                <Text style={styles.infoText}>Proyecto: {project.nombre}</Text>
-                <Text style={styles.infoText}>Kilometraje: {project.kmInicio} / {project.kmFinal} Km</Text>
-                <Text style={styles.infoText}>Project manager: {project.manager}</Text>
-                <Text style={styles.infoText}>Ciudad inicio: {project.ciudadInicio}</Text>
-                <Text style={styles.infoText}>Ciudad final: {project.ciudadFinal}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <View style={styles.infoItem}>
+                <Text style={styles.label}>Proyecto</Text>
+                <Text style={styles.value}>{proyecto.nombre}</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.label}>Kilometraje</Text>
+                <Text style={styles.value}>
+                  {proyecto.kmInicio} / {proyecto.kmFinal} Km
+                </Text>
+              </View>
+              <View style={styles.infoItem}>
+                <Text style={styles.label}>Project manager</Text>
+                <Text style={styles.value}>{proyecto.manager || 'N/A'}</Text>
               </View>
             </View>
-          ))}
+          </View>
         </ScrollView>
       </View>
     </SafeAreaView>
   );
 }
 
-// Reutiliza tus estilos actuales o agrega los que necesites
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#0F172A',
   },
-  container: {
+  loadingContainer: {
     flex: 1,
     backgroundColor: '#0F172A',
-  },
-  header: {
-    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-    marginTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+  },
+  mainContainer: {
+    flex: 1,
+  },
+  logoHeader: {
+    paddingLeft: 15,
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight + 5 : 15,
+    paddingBottom: 10,
+    backgroundColor: '#0F172A',
   },
   logo: {
-    width: 60,
-    height: 60,
-    marginRight: 12,
+    width: 50,
+    height: 50,
   },
-  headerTitle: {
-    color: 'white',
-    fontSize: 22,
-    fontWeight: 'bold',
-  },
-  cardContainer: {
+  scrollContent: {
+    alignItems: 'center',
     paddingBottom: 20,
-    paddingHorizontal: 10,
   },
   card: {
     backgroundColor: '#1E293B',
-    marginVertical: 10,
     borderRadius: 10,
     overflow: 'hidden',
+    marginVertical: 10,
+    width: '95%',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.2,
-    shadowRadius: 5,
+    shadowRadius: 6,
     elevation: 5,
   },
-  mapContainer: {
-    width: '100%',
-    height: 200,
-    borderRadius: 10,
-    overflow: 'hidden',
+  mapBox: {
+    height: 180,
     position: 'relative',
   },
   map: {
     flex: 1,
     width: '100%',
-    borderRadius: 10,
-  },
-  mapButton: {
-    position: 'absolute',
-    bottom: 10,
-    right: 10,
-    backgroundColor: '#3B82F6',
-    padding: 10,
-    borderRadius: 50,
-    elevation: 3,
+    height: '100%',
   },
   addButton: {
     position: 'absolute',
     top: 10,
     right: 10,
-    backgroundColor: '#3B82F6',
-    padding: 8,
-    borderRadius: 5,
+    backgroundColor: '#fff',
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderRadius: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   addButtonText: {
-    color: 'white',
+    marginLeft: 5,
     fontWeight: 'bold',
+    color: '#1E293B',
+    fontSize: 13,
   },
-  cardInfo: {
-    padding: 10,
+  infoRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
+    justifyContent: 'space-around',
+    padding: 10,
     backgroundColor: '#1E293B',
-    borderBottomLeftRadius: 10,
-    borderBottomRightRadius: 10,
   },
-  infoText: {
-    color: 'white',
+  infoItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  label: {
+    color: '#9CA3AF',
+    fontSize: 12,
+    marginBottom: 2,
+  },
+  value: {
+    color: '#FFFFFF',
+    fontWeight: 'bold',
     fontSize: 14,
-    marginVertical: 2,
   },
 });

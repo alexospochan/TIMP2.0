@@ -1,56 +1,50 @@
 import React from "react";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { FontAwesome } from "@expo/vector-icons";
+import Ionicons from "react-native-vector-icons/Ionicons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MapasAdministrador from "../MapasAdministrador";
 import BusquedaScreen from "./BusquedaScreen";
-import MasScreen from "./MasScreen";
 import PerfilScreen from "./PerfilScreen";
 
 const Tab = createBottomTabNavigator();
 
 const BottomTabs = () => {
+  const insets = useSafeAreaInsets();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: "#1e90ff",
+        tabBarActiveTintColor: "#fff",
         tabBarInactiveTintColor: "gray",
         tabBarStyle: {
-          backgroundColor: "#0a2342", // azul oscuro
+          backgroundColor: "#0a2342",
           borderTopWidth: 0,
-          elevation: 5,       // sombra Android
-          shadowOpacity: 0.3, // sombra iOS
-          paddingBottom: 20,  // más espacio abajo para subir la barra
-          height: 70,         // aumentar altura para mayor separación
+          elevation: 5,
+          shadowOpacity: 0.3,
+          paddingBottom: 10 + insets.bottom, // suma el safe area bottom
+          height: 60 + insets.bottom,        // aumenta la altura para el safe area
         },
-        tabBarIcon: ({ color, size }) => {
+        tabBarIcon: ({ focused, color, size }) => {
           let iconName = "";
 
-          switch (route.name) {
-            case "Home":
-              iconName = "home";
-              break;
-            case "Busqueda":
-              iconName = "search";
-              break;
-            case "Mas":
-              iconName = "plus";
-              break;
-            case "Perfil":
-              iconName = "user";
-              break;
+          if (route.name === "Home") {
+            iconName = focused ? "home" : "home-outline";
+          } else if (route.name === "Busqueda") {
+            iconName = focused ? "search" : "search-outline";
+          } else if (route.name === "Perfil") {
+            iconName = focused ? "person" : "person-outline";
           }
 
-          // Reducir un poco el tamaño para que suba más
-          const iconSize = size - 4 > 0 ? size - 4 : size;
+          const iconSize = 24;
 
           return (
-            <FontAwesome
+            <Ionicons
               name={iconName}
               size={iconSize}
               color={color}
-              style={{ marginBottom: 5 }} // mueve el ícono un poco hacia arriba
+              style={{ marginBottom: 4 }} // un poco más arriba
             />
           );
         },
@@ -58,7 +52,6 @@ const BottomTabs = () => {
     >
       <Tab.Screen name="Home" component={MapasAdministrador} />
       <Tab.Screen name="Busqueda" component={BusquedaScreen} />
-      <Tab.Screen name="Mas" component={MasScreen} />
       <Tab.Screen name="Perfil" component={PerfilScreen} />
     </Tab.Navigator>
   );

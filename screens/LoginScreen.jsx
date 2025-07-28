@@ -12,20 +12,16 @@ import {
   Platform,
   ToastAndroid,
 } from "react-native";
-import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { RootStackParamList } from "../App";
 import { FontAwesome } from "@expo/vector-icons";
 import Constants from "expo-constants";
 import * as Animatable from "react-native-animatable";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-type Props = NativeStackScreenProps<RootStackParamList, "Login">;
-
 const SERVER_URL =
-  (Constants.expoConfig?.extra?.SERVER_URL as string) ||
-  ((Constants.manifest as any)?.extra?.SERVER_URL as string);
+  (Constants.expoConfig?.extra?.SERVER_URL) ||
+  ((Constants.manifest?.extra?.SERVER_URL));
 
-const LoginScreen: React.FC<Props> = ({ navigation }) => {
+const LoginScreen = ({ navigation }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -38,16 +34,16 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
 
-  const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  const validateEmail = (email) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
-  const handleFocus = (animRef: Animated.Value) => {
+  const handleFocus = (animRef) => {
     Animated.spring(animRef, {
       toValue: 1.03,
       useNativeDriver: true,
     }).start();
   };
 
-  const handleBlur = (animRef: Animated.Value) => {
+  const handleBlur = (animRef) => {
     Animated.spring(animRef, {
       toValue: 1,
       useNativeDriver: true,
@@ -84,22 +80,18 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
     try {
       const response = await fetch(`${SERVER_URL}/login`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
 
       const data = await response.json();
       setLoading(false);
 
-      console.log("Respuesta del servidor:", data);
       const rol = data.usuario?.rol?.toLowerCase().trim() || "";
-      console.log("ROL recibido:", rol);
 
       if (response.ok) {
         const nombre = data.usuario?.nombre || "Usuario";
-        await AsyncStorage.setItem("usuario", JSON.stringify(data.usuario));
+        await AsyncStorage.setItem("userInfo", JSON.stringify(data.usuario));
 
         if (Platform.OS === "android") {
           ToastAndroid.show(`Iniciando sesión, ${nombre}`, ToastAndroid.SHORT);
@@ -112,7 +104,7 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
               break;
             case "jefe":
             case "jefe_cuadrilla":
-              navigation.replace("Mapas");
+              navigation.replace("JefeCuadrillaTabs");
               break;
             default:
               Alert.alert("Error", `Rol no reconocido: ${rol}`);
@@ -153,7 +145,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
           Iniciar Sesión
         </Animatable.Text>
 
-        {/* Email */}
         <Animatable.View animation="fadeInUp" duration={400} delay={300} style={{ width: "85%" }}>
           <Animated.View style={{ transform: [{ scale: emailAnim }] }}>
             <View style={[styles.inputContainer, emailError ? styles.errorInputContainer : null]}>
@@ -178,12 +169,9 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </Animatable.View>
         {emailError ? <Text style={styles.errorText}>{emailError}</Text> : null}
 
-        {/* Password */}
         <Animatable.View animation="fadeInUp" duration={400} delay={400} style={{ width: "85%" }}>
           <Animated.View style={{ transform: [{ scale: passAnim }] }}>
-            <View
-              style={[styles.inputContainer, passwordError ? styles.errorInputContainer : null]}
-            >
+            <View style={[styles.inputContainer, passwordError ? styles.errorInputContainer : null]}>
               <FontAwesome name="lock" size={20} color="#fff" style={styles.icon} />
               <TextInput
                 style={styles.passwordInput}
@@ -207,7 +195,6 @@ const LoginScreen: React.FC<Props> = ({ navigation }) => {
         </Animatable.View>
         {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
 
-        {/* Botones */}
         {loading ? (
           <ActivityIndicator size="large" color="#1e90ff" style={{ marginTop: 20 }} />
         ) : (

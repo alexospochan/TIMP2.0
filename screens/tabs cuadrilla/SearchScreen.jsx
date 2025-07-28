@@ -2,21 +2,20 @@ import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
-  TextInput,
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  Keyboard,
   ActivityIndicator,
   ScrollView,
+  TextInput,
+  Keyboard,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { useNavigation } from "@react-navigation/native";
-import { getTodosLosReportes } from "../../../api"; // Ajusta ruta
+import { getTodosLosReportes } from "../../api"; // Ajusta la ruta según tu proyecto
 
-export default function ReportesScreen({ route }) {
-  // Recibe usuario desde props (ejemplo), si lo tienes en contexto pásalo aquí
+export default function ReportesJefeScreen({ route }) {
   const usuario = route?.params?.usuario;
 
   const [search, setSearch] = useState("");
@@ -40,7 +39,6 @@ export default function ReportesScreen({ route }) {
     const kmInicioStr = item.proyectoId?.kmInicio?.toString() || "";
     const kmFinalStr = item.proyectoId?.kmFinal?.toString() || "";
     const searchStr = search.trim();
-
     return kmInicioStr.includes(searchStr) || kmFinalStr.includes(searchStr);
   });
 
@@ -58,7 +56,7 @@ export default function ReportesScreen({ route }) {
           { backgroundColor: index % 2 === 0 ? "#253241" : "#19212B" },
         ]}
         onPress={() =>
-          navigation.navigate("DetallesReportes", { reporte: item, usuario })
+          navigation.navigate("DetallesReportesGeneral", { reporte: item })
         }
       >
         <Text style={[styles.cell, styles.categoria]}>
@@ -99,20 +97,8 @@ export default function ReportesScreen({ route }) {
               keyboardType="numeric"
               onFocus={() => setInputFocused(true)}
               onBlur={() => setInputFocused(false)}
+              editable={true} // Activado para permitir búsqueda
             />
-            <TouchableOpacity
-              onPress={() => {
-                setSearch("");
-                Keyboard.dismiss();
-              }}
-            >
-              <Ionicons
-                name="close-circle"
-                size={24}
-                color="white"
-                style={{ marginRight: 10 }}
-              />
-            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -131,7 +117,9 @@ export default function ReportesScreen({ route }) {
                 style={{ marginTop: 20 }}
               />
             ) : filteredReportes.length === 0 ? (
-              <Text style={{ color: "white", textAlign: "center", marginTop: 20 }}>
+              <Text
+                style={{ color: "white", textAlign: "center", marginTop: 20 }}
+              >
                 No hay reportes disponibles.
               </Text>
             ) : (
@@ -140,11 +128,15 @@ export default function ReportesScreen({ route }) {
                   <Text style={[styles.headerCell, styles.categoria]}>
                     Categoría
                   </Text>
-                  <Text style={[styles.headerCell, styles.proyecto]}>Proyecto</Text>
+                  <Text style={[styles.headerCell, styles.proyecto]}>
+                    Proyecto
+                  </Text>
                   <Text style={[styles.headerCell, styles.km]}>Km</Text>
                   <Text style={[styles.headerCell, styles.hora]}>Hora</Text>
                   <Text style={[styles.headerCell, styles.fecha]}>Fecha</Text>
-                  <Text style={[styles.headerCell, styles.usuario]}>Usuario</Text>
+                  <Text style={[styles.headerCell, styles.usuario]}>
+                    Usuario
+                  </Text>
                 </View>
                 <FlatList
                   data={filteredReportes}
@@ -163,17 +155,8 @@ export default function ReportesScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#040D20",
-    paddingTop: 40,
-  },
-  topBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingBottom: 10,
-    zIndex: 2,
-  },
+  container: { flex: 1, backgroundColor: "#040D20", paddingTop: 40 },
+  topBar: { flexDirection: "row", alignItems: "center", paddingBottom: 10, zIndex: 2 },
   searchBar2: {
     flexDirection: "row",
     alignItems: "center",
@@ -191,12 +174,7 @@ const styles = StyleSheet.create({
     width: "75%",
     marginRight: 8,
   },
-  searchInput: {
-    flex: 1,
-    color: "white",
-    marginLeft: 12,
-    fontSize: 16,
-  },
+  searchInput: { flex: 1, color: "white", marginLeft: 12, fontSize: 16 },
   tableContainer: {
     backgroundColor: "#19212B",
     borderRadius: 20,
@@ -210,42 +188,19 @@ const styles = StyleSheet.create({
     borderBottomColor: "#253241",
     borderBottomWidth: 1,
   },
-  headerCell: {
-    color: "#ccc",
-    fontWeight: "bold",
-    textAlign: "center",
-  },
+  headerCell: { color: "#ccc", fontWeight: "bold", textAlign: "center" },
   row: {
     flexDirection: "row",
     paddingVertical: 12,
     borderBottomColor: "#253241",
     borderBottomWidth: 1,
   },
-  cell: {
-    color: "white",
-    textAlign: "center",
-    paddingHorizontal: 5,
-  },
-  categoria: {
-    width: 130,
-  },
-  proyecto: {
-    width: 200,
-  },
-  km: {
-    width: 100,
-  },
-  hora: {
-    width: 80,
-  },
-  fecha: {
-    width: 100,
-  },
-  usuario: {
-    width: 150,
-  },
-  blurView: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1,
-  },
+  cell: { color: "white", textAlign: "center", paddingHorizontal: 5 },
+  categoria: { width: 130 },
+  proyecto: { width: 200 },
+  km: { width: 100 },
+  hora: { width: 80 },
+  fecha: { width: 100 },
+  usuario: { width: 150 },
+  blurView: { ...StyleSheet.absoluteFillObject, zIndex: 1 },
 });

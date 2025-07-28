@@ -1,25 +1,38 @@
 import React, { useState } from 'react';
-import { 
-  View, Text, TextInput, TouchableOpacity, StyleSheet, 
-  ScrollView, KeyboardAvoidingView, Platform, Dimensions, ActivityIndicator,
-  Keyboard, TouchableWithoutFeedback 
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ScrollView,
+  KeyboardAvoidingView,
+  Platform,
+  Dimensions,
+  ActivityIndicator,
+  Keyboard,
+  TouchableWithoutFeedback,
+  Alert,
 } from 'react-native';
+import { API_URL } from '@env';
 
 const { width } = Dimensions.get('window');
 
 async function obtenerCoordenadas(ciudad) {
   try {
-    const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(ciudad)}`);
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(ciudad)}`
+    );
     const data = await response.json();
     if (data.length > 0) {
       return {
         lat: parseFloat(data[0].lat),
         lon: parseFloat(data[0].lon),
       };
-    } else {
-      return null;
     }
+    return null;
   } catch (error) {
+    console.error('Error obteniendo coordenadas:', error);
     return null;
   }
 }
@@ -39,25 +52,25 @@ export default function AgregarProyecto({ navigation }) {
   const validateField = (field) => {
     switch (field) {
       case 'nombre':
-        if (!nombre.trim()) return 'El nombre del proyecto es obligatorio';
-        return '';
+        return !nombre.trim() ? 'El nombre del proyecto es obligatorio' : '';
       case 'kmInicio':
-        if (!kmInicio.trim()) return 'Kilómetro inicio es obligatorio';
-        if (isNaN(kmInicio)) return 'Kilómetro inicio debe ser un número';
-        return '';
+        return !kmInicio.trim()
+          ? 'Kilómetro inicio es obligatorio'
+          : isNaN(kmInicio)
+          ? 'Debe ser un número'
+          : '';
       case 'kmFinal':
-        if (!kmFinal.trim()) return 'Kilómetro final es obligatorio';
-        if (isNaN(kmFinal)) return 'Kilómetro final debe ser un número';
-        return '';
+        return !kmFinal.trim()
+          ? 'Kilómetro final es obligatorio'
+          : isNaN(kmFinal)
+          ? 'Debe ser un número'
+          : '';
       case 'manager':
-        if (!manager.trim()) return 'El nombre del project manager es obligatorio';
-        return '';
+        return !manager.trim() ? 'El nombre del project manager es obligatorio' : '';
       case 'ciudadInicio':
-        if (!ciudadInicio.trim()) return 'La ciudad inicial es obligatoria';
-        return '';
+        return !ciudadInicio.trim() ? 'La ciudad inicial es obligatoria' : '';
       case 'ciudadFinal':
-        if (!ciudadFinal.trim()) return 'La ciudad final es obligatoria';
-        return '';
+        return !ciudadFinal.trim() ? 'La ciudad final es obligatoria' : '';
       default:
         return '';
     }
@@ -73,7 +86,7 @@ export default function AgregarProyecto({ navigation }) {
       ciudadFinal: validateField('ciudadFinal'),
     };
     setErrors(nuevosErrores);
-    return !Object.values(nuevosErrores).some(msg => msg.length > 0);
+    return !Object.values(nuevosErrores).some((msg) => msg.length > 0);
   };
 
   const onCancelar = () => navigation.goBack();
@@ -87,15 +100,18 @@ export default function AgregarProyecto({ navigation }) {
     const finalCoords = await obtenerCoordenadas(ciudadFinal);
 
     if (!inicioCoords || !finalCoords) {
-      alert("No se pudieron obtener las coordenadas para las ciudades proporcionadas.");
+      Alert.alert(
+        'Error',
+        'No se pudieron obtener las coordenadas para las ciudades proporcionadas.'
+      );
       setIsLoading(false);
       return;
     }
 
     try {
-      const response = await fetch("http://192.168.30.94:3000/proyectos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const response = await fetch(`${API_URL}/proyectos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           nombre,
           kmInicio: Number(kmInicio),
@@ -112,18 +128,23 @@ export default function AgregarProyecto({ navigation }) {
       });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        alert("Error al crear proyecto: " + (errorData.message || "Error desconocido"));
+        const errorData = await response.json().catch(() => ({}));
+        Alert.alert('Error', 'Error al crear proyecto: ' + (errorData.message || 'Error desconocido'));
         setIsLoading(false);
         return;
       }
 
       const createdProject = await response.json();
-      alert(`Proyecto creado: ${createdProject.nombre}`);
-      setIsLoading(false);
-      navigation.navigate('BottomTabs', { recargar: true });
+      Alert.alert('Éxito', `Proyecto creado: ${createdProject.nombre}`, [
+        {
+          text: 'Aceptar',
+          onPress: () => navigation.navigate('BottomTabs', { recargar: true }),
+        },
+      ]);
     } catch (error) {
-      alert("Error de conexión con el servidor");
+      console.error('Error fetch:', error);
+      Alert.alert('Error', 'Error de conexión con el servidor');
+    } finally {
       setIsLoading(false);
     }
   };
@@ -131,7 +152,7 @@ export default function AgregarProyecto({ navigation }) {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.outerContainer}
       >
         <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
@@ -147,10 +168,8 @@ export default function AgregarProyecto({ navigation }) {
                 setNombre(text);
                 if (errors.nombre) setErrors({ ...errors, nombre: '' });
               }}
-              onBlur={() => {
-                const err = validateField('nombre');
-                setErrors({ ...errors, nombre: err });
-              }}
+              onBlur={() => setErrors({ ...errors, nombre: validateField('nombre') })}
+              editable={!isLoading}
             />
             {!!errors.nombre && <Text style={styles.errorText}>{errors.nombre}</Text>}
 
@@ -165,11 +184,9 @@ export default function AgregarProyecto({ navigation }) {
                     setKmInicio(text);
                     if (errors.kmInicio) setErrors({ ...errors, kmInicio: '' });
                   }}
-                  onBlur={() => {
-                    const err = validateField('kmInicio');
-                    setErrors({ ...errors, kmInicio: err });
-                  }}
+                  onBlur={() => setErrors({ ...errors, kmInicio: validateField('kmInicio') })}
                   placeholderTextColor="#94A3B8"
+                  editable={!isLoading}
                 />
                 {!!errors.kmInicio && <Text style={styles.errorText}>{errors.kmInicio}</Text>}
               </View>
@@ -184,11 +201,9 @@ export default function AgregarProyecto({ navigation }) {
                     setKmFinal(text);
                     if (errors.kmFinal) setErrors({ ...errors, kmFinal: '' });
                   }}
-                  onBlur={() => {
-                    const err = validateField('kmFinal');
-                    setErrors({ ...errors, kmFinal: err });
-                  }}
+                  onBlur={() => setErrors({ ...errors, kmFinal: validateField('kmFinal') })}
                   placeholderTextColor="#94A3B8"
+                  editable={!isLoading}
                 />
                 {!!errors.kmFinal && <Text style={styles.errorText}>{errors.kmFinal}</Text>}
               </View>
@@ -203,10 +218,8 @@ export default function AgregarProyecto({ navigation }) {
                 setManager(text);
                 if (errors.manager) setErrors({ ...errors, manager: '' });
               }}
-              onBlur={() => {
-                const err = validateField('manager');
-                setErrors({ ...errors, manager: err });
-              }}
+              onBlur={() => setErrors({ ...errors, manager: validateField('manager') })}
+              editable={!isLoading}
             />
             {!!errors.manager && <Text style={styles.errorText}>{errors.manager}</Text>}
 
@@ -221,10 +234,8 @@ export default function AgregarProyecto({ navigation }) {
                     setCiudadInicio(text);
                     if (errors.ciudadInicio) setErrors({ ...errors, ciudadInicio: '' });
                   }}
-                  onBlur={() => {
-                    const err = validateField('ciudadInicio');
-                    setErrors({ ...errors, ciudadInicio: err });
-                  }}
+                  onBlur={() => setErrors({ ...errors, ciudadInicio: validateField('ciudadInicio') })}
+                  editable={!isLoading}
                 />
                 {!!errors.ciudadInicio && <Text style={styles.errorText}>{errors.ciudadInicio}</Text>}
               </View>
@@ -239,10 +250,8 @@ export default function AgregarProyecto({ navigation }) {
                     setCiudadFinal(text);
                     if (errors.ciudadFinal) setErrors({ ...errors, ciudadFinal: '' });
                   }}
-                  onBlur={() => {
-                    const err = validateField('ciudadFinal');
-                    setErrors({ ...errors, ciudadFinal: err });
-                  }}
+                  onBlur={() => setErrors({ ...errors, ciudadFinal: validateField('ciudadFinal') })}
+                  editable={!isLoading}
                 />
                 {!!errors.ciudadFinal && <Text style={styles.errorText}>{errors.ciudadFinal}</Text>}
               </View>
@@ -252,24 +261,25 @@ export default function AgregarProyecto({ navigation }) {
               style={[styles.input, { height: 100, textAlignVertical: 'top' }]}
               placeholder="Descripción"
               placeholderTextColor="#94A3B8"
-              multiline={true}
+              multiline
               numberOfLines={4}
               value={descripcion}
               onChangeText={setDescripcion}
+              editable={!isLoading}
             />
 
             <View style={styles.buttonRow}>
-              <TouchableOpacity 
-                style={[styles.button, styles.cancelButton]} 
-                onPress={onCancelar} 
+              <TouchableOpacity
+                style={[styles.button, styles.cancelButton]}
+                onPress={onCancelar}
                 disabled={isLoading}
               >
                 <Text style={styles.buttonText}>Cancelar</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={[styles.button, styles.createButton, isLoading && styles.disabledButton]} 
-                onPress={onCrear} 
+              <TouchableOpacity
+                style={[styles.button, styles.createButton, isLoading && styles.disabledButton]}
+                onPress={onCrear}
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -301,7 +311,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   formContainer: {
-    backgroundColor: 'rgba(30, 41, 59, 0.95)', 
+    backgroundColor: 'rgba(30, 41, 59, 0.95)',
     borderRadius: 20,
     padding: 30,
     width: width * 0.9,

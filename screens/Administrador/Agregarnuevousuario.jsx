@@ -14,6 +14,9 @@ import { Picker } from "@react-native-picker/picker";
 import Icon from "react-native-vector-icons/FontAwesome";
 import { useNavigation } from "@react-navigation/native";
 
+// Importamos la URL desde api.ts
+import { API_URL } from "../../api";  // Ajusta la ruta si es necesario
+
 const AnimatedIcon = ({ name, color }) => {
   const scale = useRef(new Animated.Value(1)).current;
 
@@ -54,7 +57,7 @@ const AgregarNuevoUsuario = () => {
   const [proyectos, setProyectos] = useState([]);
 
   useEffect(() => {
-    fetch("http://192.168.30.94:3000/proyectos")
+    fetch(`${API_URL}/proyectos`)
       .then((res) => res.json())
       .then((data) => setProyectos(data))
       .catch(() =>
@@ -88,7 +91,7 @@ const AgregarNuevoUsuario = () => {
       proyectoId: proyectoSeleccionado,
     };
 
-    fetch("http://192.168.30.94:3000/usuarios/registrar", {
+    fetch(`${API_URL}/usuarios/registrar`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(nuevoUsuario),
@@ -110,7 +113,7 @@ const AgregarNuevoUsuario = () => {
           { cancelable: false }
         );
 
-        // Limpiar campos después de éxito
+
         setNombre("");
         setPrimerApellido("");
         setSegundoApellido("");
